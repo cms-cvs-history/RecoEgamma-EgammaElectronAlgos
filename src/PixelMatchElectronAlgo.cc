@@ -12,7 +12,7 @@
 //
 // Original Author:  Ursula Berthon, Claude Charlot
 //         Created:  Thu july 6 13:22:06 CEST 2006
-// $Id: PixelMatchElectronAlgo.cc,v 1.28 2007/01/13 09:06:31 rahatlou Exp $
+// $Id: PixelMatchElectronAlgo.cc,v 1.34 2007/02/05 13:56:47 rahatlou Exp $
 //
 //
 #include "RecoEgamma/EgammaElectronAlgos/interface/PixelMatchElectronAlgo.h"
@@ -133,8 +133,14 @@ void  PixelMatchElectronAlgo::run(Event& e, PixelMatchGsfElectronCollection & ou
   edm::Handle<HBHERecHitCollection> hbhe;
   HBHERecHitMetaCollection *mhbhe=0;
   if (hOverEConeSize_ > 0.) {
-    e.getByType(hbhe);  
-    mhbhe=  &HBHERecHitMetaCollection(*hbhe);  //FIXME, generates warning
+    // ShR, 5 Feb 2007: trouble in 122!
+    // e.getByType(hbhe);  
+    // mhbhe=  &HBHERecHitMetaCollection(*hbhe);  //FIXME, generates warning
+    // temporary fix ONLY for 1_2_2
+    std::string lModule("hbhereco");
+    e.getByLabel(lModule,hbhe);
+    mhbhe =  &HBHERecHitMetaCollection(*hbhe);
+    // ShR: end of nasty hack
   }
   e.getByLabel(trackBarrelLabel_,trackBarrelInstanceName_,tracksBarrelH);
   e.getByLabel(trackEndcapLabel_,trackEndcapInstanceName_,tracksEndcapH);
@@ -202,7 +208,7 @@ void PixelMatchElectronAlgo::process(edm::Handle<GsfTrackCollection> tracksH, co
     // calculate Trajectory StatesOnSurface....
     //at innermost point
     TrajectoryStateOnSurface innTSOS = mtsTransform_->innerStateOnSurface(t, *(trackerHandle_.product()), theMagField.product());
- 
+    if (!innTSOS.isValid()) continue;
     //at vertex
     // innermost state propagation to the nominal vertex
     TrajectoryStateOnSurface vtxTSOS =
@@ -211,11 +217,14 @@ void PixelMatchElectronAlgo::process(edm::Handle<GsfTrackCollection> tracksH, co
 
     //at seed
     TrajectoryStateOnSurface outTSOS = mtsTransform_->outerStateOnSurface(t, *(trackerHandle_.product()), theMagField.product());
+    if (!outTSOS.isValid()) continue;
+    
     TrajectoryStateOnSurface seedTSOS = TransverseImpactPointExtrapolator(*geomPropFw_).extrapolate(outTSOS,GlobalPoint(theClus.seed()->position().x(),theClus.seed()->position().y(),theClus.seed()->position().z()));
- 
+    if (!seedTSOS.isValid()) seedTSOS=outTSOS;
 
     //at scl
     TrajectoryStateOnSurface sclTSOS = TransverseImpactPointExtrapolator(*geomPropFw_).extrapolate(innTSOS,GlobalPoint(theClus.x(),theClus.y(),theClus.z()));
+    if (!sclTSOS.isValid()) sclTSOS=outTSOS;
 
     GlobalVector vtxMom=computeMode(vtxTSOS);
     GlobalPoint  sclPos=sclTSOS.globalPosition();
