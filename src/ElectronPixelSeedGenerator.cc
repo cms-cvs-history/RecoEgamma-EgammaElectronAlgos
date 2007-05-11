@@ -13,7 +13,7 @@
 //
 // Original Author:  Ursula Berthon, Claude Charlot
 //         Created:  Mon Mar 27 13:22:06 CEST 2006
-// $Id: ElectronPixelSeedGenerator.cc,v 1.20 2007/03/14 17:09:18 uberthon Exp $
+// $Id: ElectronPixelSeedGenerator.cc,v 1.23 2007/04/03 09:13:59 uberthon Exp $
 //
 //
 #include "RecoEgamma/EgammaElectronAlgos/interface/PixelHitMatcher.h" 
@@ -91,7 +91,7 @@ void ElectronPixelSeedGenerator::setupES(const edm::EventSetup& setup, const edm
 
 void  ElectronPixelSeedGenerator::run(edm::Event& e, const edm::Handle<reco::SuperClusterCollection> &clusters, reco::ElectronPixelSeedCollection & out){
 
-  theMeasurementTracker->update(e);
+  theMeasurementTracker->updatePixels(e);
   
   NavigationSetter setter(*theNavigationSchool);
 
@@ -158,8 +158,9 @@ void ElectronPixelSeedGenerator::seedsFromThisCluster( edm::Ref<reco::SuperClust
       if (valid) {
         reco::ElectronPixelSeed s(seedCluster,*pts_,recHits_,dir);
         result.push_back(s);
+	delete pts_;
+	pts_=0;
       }
-      delete pts_;
     }
   }  
   aCharge=1.;  
@@ -175,8 +176,11 @@ void ElectronPixelSeedGenerator::seedsFromThisCluster( edm::Ref<reco::SuperClust
     std::vector<std::pair<RecHitWithDist,ConstRecHitPointer> >::iterator v;
     for (v = posPixelHits.begin(); v != posPixelHits.end(); v++) {
       bool valid = prepareElTrackSeed((*v).first.recHit(),(*v).second,posVertex);
-      if (valid) result.push_back(reco::ElectronPixelSeed(seedCluster,*pts_,recHits_,dir));
-      delete pts_;
+      if (valid) {
+	result.push_back(reco::ElectronPixelSeed(seedCluster,*pts_,recHits_,dir));
+	delete pts_;
+	pts_=0;
+      }
     }
   } 
 
@@ -192,6 +196,7 @@ bool ElectronPixelSeedGenerator::prepareElTrackSeed(ConstRecHitPointer innerhit,
   LogDebug("") <<"[ElectronPixelSeedGenerator::prepareElTrackSeed] inner PixelHit   x,y,z "<<innerhit->globalPosition();
   LogDebug("") <<"[ElectronPixelSeedGenerator::prepareElTrackSeed] outer PixelHit   x,y,z "<<outerhit->globalPosition();
 
+  pts_=0;
   recHits_.clear();
     
   SiPixelRecHit *hit;
