@@ -20,7 +20,7 @@ class ElectronMomentumCorrector
 {
  public:
 
-  //  ElectronMomentumCorrector(){newMomentum_=CLHEP::HepLorentzVector();}
+  //  ElectronMomentumCorrector(){newMomentum_=HepLorentzVector();}
    ElectronMomentumCorrector(){newMomentum_= math::XYZTLorentzVector();}
    //virtual
    ~ElectronMomentumCorrector(){}
@@ -29,7 +29,7 @@ class ElectronMomentumCorrector
    void correct(reco::GsfElectron &, TrajectoryStateOnSurface &);
 
   //DC: USED ??
-  ////  CLHEP::HepLorentzVector getBestMomentum() const {return newMomentum_;}
+  ////  HepLorentzVector getBestMomentum() const {return newMomentum_;}
   //math::XYZTLorentzVector getBestMomentum() const {return newMomentum_;}
   //float getSCEnergyError() const {return errorEnergy_;}
   //float getTrackMomentumError() const {return errorTrackMomentum_;}
@@ -38,7 +38,7 @@ class ElectronMomentumCorrector
 
   float energyError(float E, float *par) const;
 
-  //  CLHEP::HepLorentzVector newMomentum_;
+  //  HepLorentzVector newMomentum_;
   math::XYZTLorentzVector newMomentum_;
   float errorEnergy_;
   float errorTrackMomentum_;
