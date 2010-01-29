@@ -13,7 +13,7 @@
 //
 // Original Author:  Ursula Berthon, Claude Charlot
 //         Created:  Mon Mar 27 13:22:06 CEST 2006
-// $Id: ElectronSeedGenerator.cc,v 1.3 2009/06/17 17:19:42 charlot Exp $
+// $Id: ElectronSeedGenerator.cc,v 1.4 2009/06/30 14:24:40 chamont Exp $
 //
 //
 
@@ -142,16 +142,16 @@ void ElectronSeedGenerator::setupES(const edm::EventSetup& setup) {
     tochange=true;
   }
 
-  edm::ESHandle<TrackerGeometry> trackerGeometryHandle;
+  //edm::ESHandle<TrackerGeometry> trackerGeometryHandle;
   if (cacheIDTrkGeom_!=setup.get<TrackerDigiGeometryRecord>().cacheIdentifier()) {
     cacheIDTrkGeom_=setup.get<TrackerDigiGeometryRecord>().cacheIdentifier();
-    setup.get<TrackerDigiGeometryRecord>().get(trackerGeometryHandle);
+    setup.get<TrackerDigiGeometryRecord>().get(theTrackerGeometry);
     tochange=true; //FIXME
   }
 
   if (tochange) {
-    myMatchEle->setES(&(*theMagField),theMeasurementTracker,trackerGeometryHandle.product());
-    myMatchPos->setES(&(*theMagField),theMeasurementTracker,trackerGeometryHandle.product());
+    myMatchEle->setES(&(*theMagField),theMeasurementTracker,theTrackerGeometry.product());
+    myMatchPos->setES(&(*theMagField),theMeasurementTracker,theTrackerGeometry.product());
   }
 
 }

@@ -27,6 +27,7 @@
 
 #include "RecoTracker/TransientTrackingRecHit/interface/TSiPixelRecHit.h"
 #include "RecoTracker/TkDetLayers/interface/GeometricSearchTracker.h"
+#include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
 
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/Framework/interface/EventSetup.h"
@@ -82,6 +83,7 @@ class ElectronSeedGenerator
   TrajectorySeedCollection* theInitialSeedColl;
 
   edm::ESHandle<MagneticField>                theMagField;
+  edm::ESHandle<TrackerGeometry>              theTrackerGeometry;
   edm::ESHandle<GeometricSearchTracker>       theGeomSearchTracker;
   KFUpdator * theUpdator;
   PropagatorWithMaterial * thePropagator;
