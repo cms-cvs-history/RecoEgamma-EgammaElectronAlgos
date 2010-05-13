@@ -75,8 +75,8 @@ SeedFilter::SeedFilter(const edm::ParameterSet& conf)
   combinatorialSeedGenerator = new SeedGeneratorFromRegionHits(hitsGenerator,0,new SeedFromConsecutiveHitsCreator());
 
   // new beamSpot tag
-  if (pset.exists("beamSpot"))
-   { beamSpotTag_ = pset.getParameter<edm::InputTag>("beamSpot") ; }
+  if (conf.exists("beamSpot"))
+   { beamSpotTag_ = conf.getParameter<edm::InputTag>("beamSpot") ; }
 
 }
 
