@@ -12,7 +12,7 @@
 //
 // Original Author:  Ursula Berthon, Claude Charlot
 //         Created:  Thu july 6 13:22:06 CEST 2006
-// $Id: GsfElectronAlgo.cc,v 1.88 2010/01/18 20:55:02 charlot Exp $
+// $Id: GsfElectronAlgo.cc,v 1.89 2010/01/22 10:06:56 chamont Exp $
 //
 //
 
@@ -146,6 +146,7 @@ GsfElectronAlgo::GsfElectronAlgo
    intRadiusHcal_(intRadiusHcal), etMinHcal_(etMinHcal), intRadiusEcalBarrel_(intRadiusEcalBarrel),  intRadiusEcalEndcaps_(intRadiusEcalEndcaps),  jurassicWidth_(jurassicWidth),
    etMinBarrel_(etMinBarrel),  eMinBarrel_(eMinBarrel),  etMinEndcaps_(etMinEndcaps),  eMinEndcaps_(eMinEndcaps),
    vetoClustered_(vetoClustered), useNumCrystals_(useNumCrystals), ctfTracksCheck_(false),
+   beamSpotTag_("offlineBeamSpot"),
    cacheIDGeom_(0),cacheIDTopo_(0),cacheIDTDGeom_(0),cacheIDMagField_(0),
    superClusterErrorFunction_(0),
    pfTranslatorParametersChecked_(false), ecalSeedingParametersChecked_(false)
@@ -187,6 +188,10 @@ GsfElectronAlgo::GsfElectronAlgo
   pfMVA_ = conf.getParameter<edm::InputTag>("pfMVA") ;
   ctfTracks_ = conf.getParameter<edm::InputTag>("ctfTracks");
   seedsTag_ = conf.getParameter<edm::InputTag>("seedsTag");
+
+  // new beamSpot tag
+  if (conf.exists("beamSpot"))
+   { beamSpotTag_ = conf.getParameter<edm::InputTag>("beamSpot") ; }
 
   // for backward compatibility
   ctfTracksCheck_ = conf.getParameter<bool>("ctfTracksCheck");
