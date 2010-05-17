@@ -12,7 +12,7 @@
 //
 // Original Author:  Ursula Berthon, Claude Charlot
 //         Created:  Thu july 6 13:22:06 CEST 2006
-// $Id: GsfElectronAlgo.cc,v 1.89 2010/01/22 10:06:56 chamont Exp $
+// $Id: GsfElectronAlgo.cc,v 1.89.6.1 2010/05/15 14:25:26 chamont Exp $
 //
 //
 
@@ -299,7 +299,7 @@ void  GsfElectronAlgo::run(Event& e, GsfElectronCollection & outEle) {
 
   // get the beamspot from the Event:
   edm::Handle<reco::BeamSpot> recoBeamSpotHandle;
-  e.getByType(recoBeamSpotHandle);
+  e.getByLabel(beamSpotTag_,recoBeamSpotHandle);
   const BeamSpot bs = *recoBeamSpotHandle;
 
   // prepare access to hcal data
