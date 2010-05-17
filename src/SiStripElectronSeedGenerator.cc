@@ -56,7 +56,7 @@ Description: SiStrip-driven electron seed finding algorithm.
 #include "RecoEgamma/EgammaElectronAlgos/interface/SiStripElectronSeedGenerator.h"
 
 SiStripElectronSeedGenerator::SiStripElectronSeedGenerator(const edm::ParameterSet &pset)
-  :beamSpotTag_("offlineBeamSpot"),
+ : beamSpotTag_("offlineBeamSpot"),
    theUpdator(0),thePropagator(0),theMeasurementTracker(0),
    theSetup(0),pts_(0),theMatcher_(0),
    cacheIDMagField_(0),cacheIDCkfComp_(0),cacheIDTrkGeom_(0)
