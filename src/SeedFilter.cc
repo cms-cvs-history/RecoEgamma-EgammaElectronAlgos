@@ -44,6 +44,7 @@ using namespace std;
 using namespace reco;
 
 SeedFilter::SeedFilter(const edm::ParameterSet& conf)
+ : beamSpotTag_("offlineBeamSpot")
  {
   edm::LogInfo ("EtaPhiRegionSeedFactory") << "Enter the EtaPhiRegionSeedFactory";
   edm::ParameterSet regionPSet = conf.getParameter<edm::ParameterSet>("RegionPSet");
@@ -72,8 +73,15 @@ SeedFilter::SeedFilter(const edm::ParameterSet& conf)
   // start seed generator
   combinatorialSeedGenerator = new SeedGeneratorFromRegionHits(hitsGenerator,0,new SeedFromConsecutiveHitsCreator());
 
-  beamSpotTag_ = conf.getParameter<edm::InputTag>("beamSpot") ;
-  measurementTrackerName_ = conf.getParameter<std::string>("measurementTrackerName") ;
+  // new beamSpot tag
+  if (conf.exists("beamSpot"))
+   { beamSpotTag_ = conf.getParameter<edm::InputTag>("beamSpot") ; }
+
+  if (conf.exists("measurementTrackerName"))
+    measurementTrackerName_ = conf.getParameter<std::string>("measurementTrackerName");
+  else
+    measurementTrackerName_ = "";
+
  }
 
 SeedFilter::~SeedFilter() {
