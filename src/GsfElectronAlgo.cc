@@ -12,7 +12,7 @@
 //
 // Original Author:  Ursula Berthon, Claude Charlot
 //         Created:  Thu july 6 13:22:06 CEST 2006
-// $Id: GsfElectronAlgo.cc,v 1.103.2.1 2010/10/01 09:23:22 chamont Exp $
+// $Id: GsfElectronAlgo.cc,v 1.103.2.2 2010/10/05 20:37:28 chamont Exp $
 //
 //
 
@@ -169,7 +169,7 @@ GsfElectronAlgo::GsfElectronAlgo
    // hcal strategy
    hcalHelper_ = new ElectronHcalHelper(conf) ;
    hcalHelperPflow_ = new ElectronHcalHelper(conf,true,true) ;
-   //hOverEConeSize_ = conf.getParameter<double>("hOverEConeSize") ;
+   //hOverEConeSize_ = conf.getParameter<double>("hOverEConeSize") ; // for the check
    hcalTowers_ = conf.getParameter<edm::InputTag>("hcalTowers") ;
    //hOverEPtMin_ = conf.getParameter<double>("hOverEPtMin") ;
 //     maxHOverEDepth1Barrel_ = conf.getParameter<double>("maxHOverEDepth1Barrel") ;
@@ -1185,8 +1185,8 @@ void GsfElectronAlgo::checkEcalSeedingParameters( edm::ParameterSetID const & ps
 
   if (seedConfiguration.getParameter<bool>("applyHOverECut"))
    {
-    if ((hOverEConeSize_!=0)&&(hOverEConeSize_!=seedConfiguration.getParameter<double>("hOverEConeSize")))
-     { edm::LogWarning("GsfElectronAlgo|InconsistentParameters") <<"The H/E cone size ("<<hOverEConeSize_<<") is different from ecal seeding ("<<seedConfiguration.getParameter<double>("hOverEConeSize")<<")." ; }
+    if ((hcalHelper_->hOverEConeSize()!=0)&&(hcalHelper_->hOverEConeSize()!=seedConfiguration.getParameter<double>("hOverEConeSize")))
+     { edm::LogWarning("GsfElectronAlgo|InconsistentParameters") <<"The H/E cone size ("<<hcalHelper_->hOverEConeSize()<<") is different from ecal seeding ("<<seedConfiguration.getParameter<double>("hOverEConeSize")<<")." ; }
     if (maxHOverEBarrel_<seedConfiguration.getParameter<double>("maxHOverEBarrel"))
      { edm::LogWarning("GsfElectronAlgo|InconsistentParameters") <<"The max barrel H/E is lower than during ecal seeding." ; }
     if (maxHOverEEndcaps_<seedConfiguration.getParameter<double>("maxHOverEEndcaps"))
