@@ -10,8 +10,6 @@
 #include "RecoEcal/EgammaCoreTools/interface/EcalClusterFunctionFactory.h"
 #include "RecoEcal/EgammaCoreTools/interface/EcalClusterTools.h"
 
-#include "DataFormats/ParticleFlowReco/interface/GsfPFRecTrackFwd.h"
-#include "DataFormats/ParticleFlowReco/interface/GsfPFRecTrack.h"
 #include "DataFormats/GsfTrackReco/interface/GsfTrackFwd.h"
 #include "DataFormats/EgammaReco/interface/BasicCluster.h"
 #include "DataFormats/EgammaReco/interface/ElectronSeed.h"
@@ -190,7 +188,6 @@ struct GsfElectronAlgo::EventData
 
   // input collections
   edm::Handle<reco::GsfElectronCollection> previousElectrons ;
-  edm::Handle<reco::GsfElectronCollection> pflowElectrons ;
   edm::Handle<reco::GsfElectronCoreCollection> coreElectrons ;
   edm::Handle<EcalRecHitCollection> reducedEBRecHits ;
   edm::Handle<EcalRecHitCollection> reducedEERecHits ;
@@ -198,7 +195,6 @@ struct GsfElectronAlgo::EventData
   edm::Handle<CaloTowerCollection> towers ;
   edm::Handle<edm::ValueMap<float> > pfMva ;
   edm::Handle<reco::ElectronSeedCollection> seeds ;
-  edm::Handle<reco::GsfPFRecTrackCollection> gsfPfRecTracks ;
   bool originalCtfTrackCollectionRetreived ;
   bool originalGsfTrackCollectionRetreived ;
   edm::Handle<reco::TrackCollection> originalCtfTracks ;
@@ -522,41 +518,6 @@ Candidate::LorentzVector GsfElectronAlgo::ElectronData::calculateMomentum()
      superClusterRef->energy() ) ;
  }
 
-void GsfElectronAlgo::calculateShowerShape( const reco::SuperClusterRef & theClus, bool pflow, reco::GsfElectron::ShowerShape & showerShape )
- {
-  const reco::CaloCluster & seedCluster = *(theClus->seed()) ;
-  // temporary, till CaloCluster->seed() is made available
-  DetId seedXtalId = seedCluster.hitsAndFractions()[0].first ;
-  int detector = seedXtalId.subdetId() ;
-
-  const CaloTopology * topology = eventSetupData_->caloTopo.product() ;
-  const CaloGeometry * geometry = eventSetupData_->caloGeom.product() ;
-  const EcalRecHitCollection * reducedRecHits = 0 ;
-  if (detector==EcalBarrel)
-   { reducedRecHits = eventData_->reducedEBRecHits.product() ; }
-  else
-   { reducedRecHits = eventData_->reducedEERecHits.product() ; }
-
-  std::vector<float> covariances = EcalClusterTools::covariances(seedCluster,reducedRecHits,topology,geometry) ;
-  std::vector<float> localCovariances = EcalClusterTools::localCovariances(seedCluster,reducedRecHits,topology) ;
-  showerShape.sigmaEtaEta = sqrt(covariances[0]) ;
-  showerShape.sigmaIetaIeta = sqrt(localCovariances[0]) ;
-  showerShape.e1x5 = EcalClusterTools::e1x5(seedCluster,reducedRecHits,topology)  ;
-  showerShape.e2x5Max = EcalClusterTools::e2x5Max(seedCluster,reducedRecHits,topology)  ;
-  showerShape.e5x5 = EcalClusterTools::e5x5(seedCluster,reducedRecHits,topology) ;
-
-  if (pflow)
-   {
-    showerShape.hcalDepth1OverEcal = generalData_->hcalHelperPflow->hcalESumDepth1(*theClus)/theClus->energy() ;
-    showerShape.hcalDepth2OverEcal = generalData_->hcalHelperPflow->hcalESumDepth2(*theClus)/theClus->energy() ;
-   }
-  else
-   {
-    showerShape.hcalDepth1OverEcal = generalData_->hcalHelper->hcalESumDepth1(*theClus)/theClus->energy() ;
-    showerShape.hcalDepth2OverEcal = generalData_->hcalHelper->hcalESumDepth2(*theClus)/theClus->energy() ;
-   }
- }
-
 
 //===================================================================
 // GsfElectronAlgo
@@ -657,7 +618,6 @@ void GsfElectronAlgo::beginEvent( edm::Event & event )
   // init the handles linked to the current event
   eventData_->event = &event ;
   event.getByLabel(generalData_->inputCfg.previousGsfElectrons,eventData_->previousElectrons) ;
-  event.getByLabel(generalData_->inputCfg.pflowGsfElectronsTag,eventData_->pflowElectrons) ;
   event.getByLabel(generalData_->inputCfg.gsfElectronCores,eventData_->coreElectrons) ;
   event.getByLabel(generalData_->inputCfg.ctfTracks,eventData_->currentCtfTracks) ;
   event.getByLabel(generalData_->inputCfg.reducedBarrelRecHitCollection,eventData_->reducedEBRecHits) ;
@@ -665,8 +625,6 @@ void GsfElectronAlgo::beginEvent( edm::Event & event )
   event.getByLabel(generalData_->inputCfg.hcalTowersTag,eventData_->towers) ;
   event.getByLabel(generalData_->inputCfg.pfMVA,eventData_->pfMva) ;
   event.getByLabel(generalData_->inputCfg.seedsTag,eventData_->seeds) ;
-  if (generalData_->strategyCfg.useGsfPfRecTracks)
-   { event.getByLabel(generalData_->inputCfg.gsfPfRecTracksTag,eventData_->gsfPfRecTracks) ; }
 
   // get the beamspot from the Event:
   edm::Handle<reco::BeamSpot> recoBeamSpotHandle ;
@@ -811,63 +769,28 @@ void GsfElectronAlgo::clonePreviousElectrons()
 
 void GsfElectronAlgo::addPflowInfo()
  {
-  bool found ;
-  const GsfElectronCollection * pfElectrons = eventData_->pflowElectrons.product() ;
-  GsfElectronCollection::const_iterator pfElectron ;
-
   GsfElectronPtrCollection::iterator el ;
   for
    ( el = eventData_->electrons->begin() ;
      el != eventData_->electrons->end() ;
      el++ )
    {
-//    // MVA
-//    // we check that the value is never inferior to the no-cut value
-//    // we generally use in the configuration file for minMVA.
-//    GsfTrackRef gsfTrackRef = (*el)->gsfTrack() ;
-//    float mva = (*eventData_->pfMva.product())[gsfTrackRef] ;
-//    if (mva<noCutMin) { throw cms::Exception("GsfElectronAlgo|UnexpectedMvaValue")<<"unexpected MVA value: "<<mva ; }
-//
-//    // Mva Output
-//    GsfElectron::MvaOutput mvaOutput ;
-//    mvaOutput.mva = mva ;
-//    (*el)->setMvaOutput(mvaOutput) ;
+    // MVA
+    // we check that the value is never inferior to the no-cut value
+    // we generally use in the configuration file for minMVA.
+    GsfTrackRef gsfTrackRef = (*el)->gsfTrack() ;
+    float mva = (*eventData_->pfMva.product())[gsfTrackRef] ;
+    double noCutMin = -999999999 ;
+    if (mva<noCutMin) { throw cms::Exception("GsfElectronAlgo|UnexpectedMvaValue")<<"unexpected MVA value: "<<mva ; }
 
-    // Retreive info from pflow electrons
-    found = false ;
-    for
-     ( pfElectron = pfElectrons->begin() ; pfElectron != pfElectrons->end() ; pfElectron++ )
-     {
-      if (pfElectron->gsfTrack()==(*el)->gsfTrack())
-       {
-        if (found)
-         {
-          edm::LogWarning("GsfElectronProducer")<<"associated pfGsfElectron already found" ;
-         }
-        else
-         {
-          found = true ;
-          (*el)->setPfIsolationVariables(pfElectron->pfIsolationVariables()) ;
-          (*el)->setMvaInput(pfElectron->mvaInput()) ;
-          (*el)->setMvaOutput(pfElectron->mvaOutput()) ;
-          double noCutMin = -999999999 ;
-          if ((*el)->mva()<noCutMin) { throw cms::Exception("GsfElectronAlgo|UnexpectedMvaValue")<<"unexpected MVA value: "<<(*el)->mva() ; }
-         }
-       }
-     }
+    // Mva Output
+    GsfElectron::MvaOutput mvaOutput ;
+    mvaOutput.mva = mva ;
+    (*el)->setMvaOutput(mvaOutput) ;
+    //(*el)->setMva(mva) ;
 
     // Preselection
     setMvaPreselectionFlag(*el) ;
-
-    // Shower Shape of pflow cluster
-    if (!((*el)->pflowSuperCluster().isNull()))
-     {
-      reco::GsfElectron::ShowerShape pflowShowerShape ;
-      calculateShowerShape((*el)->pflowSuperCluster(),true,pflowShowerShape) ;
-      (*el)->setPfShowerShape(pflowShowerShape) ;
-     }
-    else if ((*el)->passingMvaPreselection())
-    { edm::LogError("GsfElectronCoreProducer")<<"Preselected tracker driven GsfTrack with no associated pflow SuperCluster." ; }
    }
  }
 
@@ -1106,7 +1029,32 @@ void GsfElectronAlgo::createElectron()
   //====================================================
 
   reco::GsfElectron::ShowerShape showerShape ;
-  calculateShowerShape(electronData_->superClusterRef,!(electronData_->coreRef->ecalDrivenSeed()),showerShape) ;
+  const CaloTopology * topology = eventSetupData_->caloTopo.product() ;
+  const CaloGeometry * geometry = eventSetupData_->caloGeom.product() ;
+  const EcalRecHitCollection * reducedRecHits = 0 ;
+  if (fiducialFlags.isEB)
+   { reducedRecHits = eventData_->reducedEBRecHits.product() ; }
+  else
+   { reducedRecHits = eventData_->reducedEERecHits.product() ; }
+  std::vector<float> covariances = EcalClusterTools::covariances(seedCluster,reducedRecHits,topology,geometry) ;
+  std::vector<float> localCovariances = EcalClusterTools::localCovariances(seedCluster,reducedRecHits,topology) ;
+  showerShape.sigmaEtaEta = sqrt(covariances[0]) ;
+  showerShape.sigmaIetaIeta = sqrt(localCovariances[0]) ;
+  showerShape.e1x5 = EcalClusterTools::e1x5(seedCluster,reducedRecHits,topology)  ;
+  showerShape.e2x5Max = EcalClusterTools::e2x5Max(seedCluster,reducedRecHits,topology)  ;
+  showerShape.e5x5 = EcalClusterTools::e5x5(seedCluster,reducedRecHits,topology) ;
+
+  reco::SuperClusterRef theClus = electronData_->superClusterRef ;
+  if (electronData_->coreRef->ecalDrivenSeed())
+   {
+    showerShape.hcalDepth1OverEcal = generalData_->hcalHelper->hcalESumDepth1(*theClus)/theClus->energy() ;
+    showerShape.hcalDepth2OverEcal = generalData_->hcalHelper->hcalESumDepth2(*theClus)/theClus->energy() ;
+   }
+  else
+   {
+    showerShape.hcalDepth1OverEcal = generalData_->hcalHelperPflow->hcalESumDepth1(*theClus)/theClus->energy() ;
+    showerShape.hcalDepth2OverEcal = generalData_->hcalHelperPflow->hcalESumDepth2(*theClus)/theClus->energy() ;
+   }
 
 
   //====================================================
@@ -1221,103 +1169,67 @@ void GsfElectronAlgo::setAmbiguityData( bool ignoreNotPreselected )
     (*e1)->setAmbiguous(false) ;
    }
 
-  // get ambiguous from GsfPfRecTracks
-  if (generalData_->strategyCfg.useGsfPfRecTracks)
+  // resolve when e/g SC is found
+  for
+   ( e1 = eventData_->electrons->begin() ;
+     e1 != eventData_->electrons->end() ;
+     ++e1 )
    {
+    if ((*e1)->ambiguous()) continue ;
+    if ( ignoreNotPreselected && !isPreselected(*e1) ) continue ;
+
+    SuperClusterRef scRef1 = (*e1)->superCluster();
+    CaloClusterPtr eleClu1 = (*e1)->electronCluster();
+    LogDebug("GsfElectronAlgo")
+      << "Blessing electron with E/P " << (*e1)->eSuperClusterOverP()
+      << ", cluster " << scRef1.get()
+      << " & track " << (*e1)->gsfTrack().get() ;
+
     for
-     ( e1 = eventData_->electrons->begin() ;
-       e1 != eventData_->electrons->end() ;
-       ++e1 )
+     ( e2 = e1, ++e2 ;
+       e2 != eventData_->electrons->end() ;
+       ++e2 )
      {
-      bool found = false ;
-      const GsfPFRecTrackCollection * gsfPfRecTrackCollection = eventData_->gsfPfRecTracks.product() ;
-      GsfPFRecTrackCollection::const_iterator gsfPfRecTrack ;
-      for ( gsfPfRecTrack=gsfPfRecTrackCollection->begin() ;
-            gsfPfRecTrack!=gsfPfRecTrackCollection->end() ;
-            ++gsfPfRecTrack )
+      if ((*e2)->ambiguous()) continue ;
+      if ( ignoreNotPreselected && !isPreselected(*e2) ) continue ;
+
+      SuperClusterRef scRef2 = (*e2)->superCluster();
+      CaloClusterPtr eleClu2 = (*e2)->electronCluster();
+
+      // search if same cluster
+      bool sameCluster = false ;
+      if (generalData_->strategyCfg.ambClustersOverlapStrategy==0)
+       { sameCluster = (scRef1==scRef2) ; }
+      else if (generalData_->strategyCfg.ambClustersOverlapStrategy==1)
        {
-        if (gsfPfRecTrack->gsfTrackRef()==(*e1)->gsfTrack())
-         {
-          if (found)
-           {
-            edm::LogWarning("GsfElectronAlgo")<<"associated gsfPfRecTrack already found" ;
-           }
-          else
-           {
-            found = true ;
-            const std::vector<reco::GsfPFRecTrackRef> & duplicates(gsfPfRecTrack->convBremGsfPFRecTrackRef()) ;
-            std::vector<reco::GsfPFRecTrackRef>::const_iterator duplicate ;
-            for ( duplicate = duplicates.begin() ; duplicate != duplicates.end() ; duplicate ++ )
-             { (*e1)->addAmbiguousGsfTrack((*duplicate)->gsfTrackRef()) ; }
-           }
-         }
+        float eMin = 1. ;
+        float threshold = eMin*cosh(EleRelPoint(scRef1->position(),eventData_->beamspot->position()).eta()) ;
+        sameCluster =
+         ( (EgAmbiguityTools::sharedEnergy(&(*eleClu1),&(*eleClu2),eventData_->reducedEBRecHits,eventData_->reducedEERecHits)>=threshold) ||
+           (EgAmbiguityTools::sharedEnergy(&(*scRef1->seed()),&(*eleClu2),eventData_->reducedEBRecHits,eventData_->reducedEERecHits)>=threshold) ||
+           (EgAmbiguityTools::sharedEnergy(&(*eleClu1),&(*scRef2->seed()),eventData_->reducedEBRecHits,eventData_->reducedEERecHits)>=threshold) ||
+           (EgAmbiguityTools::sharedEnergy(&(*scRef1->seed()),&(*scRef2->seed()),eventData_->reducedEBRecHits,eventData_->reducedEERecHits)>=threshold) ) ;
        }
-     }
-   }
-  // or search overlapping clusters
-  else
-   {
-    for
-     ( e1 = eventData_->electrons->begin() ;
-       e1 != eventData_->electrons->end() ;
-       ++e1 )
-     {
-      if ((*e1)->ambiguous()) continue ;
-      if ( ignoreNotPreselected && !isPreselected(*e1) ) continue ;
+      else
+       { throw cms::Exception("GsfElectronAlgo|UnknownAmbiguityClustersOverlapStrategy")<<"value of generalData_->strategyCfg.ambClustersOverlapStrategy is : "<<generalData_->strategyCfg.ambClustersOverlapStrategy ; }
 
-      SuperClusterRef scRef1 = (*e1)->superCluster();
-      CaloClusterPtr eleClu1 = (*e1)->electronCluster();
-      LogDebug("GsfElectronAlgo")
-        << "Blessing electron with E/P " << (*e1)->eSuperClusterOverP()
-        << ", cluster " << scRef1.get()
-        << " & track " << (*e1)->gsfTrack().get() ;
-
-      for
-       ( e2 = e1, ++e2 ;
-         e2 != eventData_->electrons->end() ;
-         ++e2 )
+      // main instructions
+      if (sameCluster)
        {
-        if ((*e2)->ambiguous()) continue ;
-        if ( ignoreNotPreselected && !isPreselected(*e2) ) continue ;
-
-        SuperClusterRef scRef2 = (*e2)->superCluster();
-        CaloClusterPtr eleClu2 = (*e2)->electronCluster();
-
-        // search if same cluster
-        bool sameCluster = false ;
-        if (generalData_->strategyCfg.ambClustersOverlapStrategy==0)
-         { sameCluster = (scRef1==scRef2) ; }
-        else if (generalData_->strategyCfg.ambClustersOverlapStrategy==1)
-         {
-          float eMin = 1. ;
-          float threshold = eMin*cosh(EleRelPoint(scRef1->position(),eventData_->beamspot->position()).eta()) ;
-          sameCluster =
-           ( (EgAmbiguityTools::sharedEnergy(&(*eleClu1),&(*eleClu2),eventData_->reducedEBRecHits,eventData_->reducedEERecHits)>=threshold) ||
-             (EgAmbiguityTools::sharedEnergy(&(*scRef1->seed()),&(*eleClu2),eventData_->reducedEBRecHits,eventData_->reducedEERecHits)>=threshold) ||
-             (EgAmbiguityTools::sharedEnergy(&(*eleClu1),&(*scRef2->seed()),eventData_->reducedEBRecHits,eventData_->reducedEERecHits)>=threshold) ||
-             (EgAmbiguityTools::sharedEnergy(&(*scRef1->seed()),&(*scRef2->seed()),eventData_->reducedEBRecHits,eventData_->reducedEERecHits)>=threshold) ) ;
-         }
-        else
-         { throw cms::Exception("GsfElectronAlgo|UnknownAmbiguityClustersOverlapStrategy")<<"value of generalData_->strategyCfg.ambClustersOverlapStrategy is : "<<generalData_->strategyCfg.ambClustersOverlapStrategy ; }
-
-        // main instructions
-        if (sameCluster)
-         {
-          LogDebug("GsfElectronAlgo")
-            << "Discarding electron with E/P " << (*e2)->eSuperClusterOverP()
-            << ", cluster " << scRef2.get()
-            << " and track " << (*e2)->gsfTrack().get() ;
-          (*e1)->addAmbiguousGsfTrack((*e2)->gsfTrack()) ;
-          (*e2)->setAmbiguous(true) ;
-         }
-        else if ((*e1)->gsfTrack()==(*e2)->gsfTrack())
-         {
-          edm::LogWarning("GsfElectronAlgo")
-            << "Forgetting electron with E/P " << (*e2)->eSuperClusterOverP()
-            << ", cluster " << scRef2.get()
-            << " and track " << (*e2)->gsfTrack().get() ;
-          (*e2)->setAmbiguous(true) ;
-         }
+        LogDebug("GsfElectronAlgo")
+          << "Discarding electron with E/P " << (*e2)->eSuperClusterOverP()
+          << ", cluster " << scRef2.get()
+          << " and track " << (*e2)->gsfTrack().get() ;
+        (*e1)->addAmbiguousGsfTrack((*e2)->gsfTrack()) ;
+        (*e2)->setAmbiguous(true) ;
+       }
+      else if ((*e1)->gsfTrack()==(*e2)->gsfTrack())
+       {
+        LogDebug("GsfElectronAlgo")
+          << "Forgetting electron with E/P " << (*e2)->eSuperClusterOverP()
+          << ", cluster " << scRef2.get()
+          << " and track " << (*e2)->gsfTrack().get() ;
+        (*e2)->setAmbiguous(true) ;
        }
      }
    }

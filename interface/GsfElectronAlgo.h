@@ -53,7 +53,6 @@ class GsfElectronAlgo {
     struct InputTagsConfiguration
      {
       edm::InputTag previousGsfElectrons ;
-      edm::InputTag pflowGsfElectronsTag ;
       edm::InputTag gsfElectronCores ;
       edm::InputTag hcalTowersTag ;
       edm::InputTag barrelSuperClusters ;
@@ -65,12 +64,10 @@ class GsfElectronAlgo {
       edm::InputTag seedsTag ;
       edm::InputTag ctfTracks ;
       edm::InputTag beamSpotTag ;
-      edm::InputTag gsfPfRecTracksTag ;
      } ;
 
     struct StrategyConfiguration
      {
-      bool useGsfPfRecTracks ;
       // if true, electron preselection is applied
       bool applyPreselection ;
       // if true, electron level escale corrections are
@@ -218,7 +215,6 @@ class GsfElectronAlgo {
     void setCutBasedPreselectionFlag( reco::GsfElectron * ele, const reco::BeamSpot & ) ;
     void setMvaPreselectionFlag( reco::GsfElectron * ele ) ;
     bool isPreselected( reco::GsfElectron * ele ) ;
-    void calculateShowerShape( const reco::SuperClusterRef &, bool pflow, reco::GsfElectron::ShowerShape & ) ;
 
     // associations
     const reco::SuperClusterRef getTrSuperCluster( const reco::GsfTrackRef & trackRef ) ;
